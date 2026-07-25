@@ -1,4 +1,4 @@
-
+#!/usr/bin/env python
 class ApplicationException(Exception):
     def __init__(self, message):
         super(ApplicationException, self).__init__(message)

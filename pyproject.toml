@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools==75.5.0", "wheel==0.45.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bin3c-python3-metahit"
+version = "0.1.1.post1"
+description = "Python 3 port of bin3C maintained for METAHI-T"
+readme = "README.md"
+requires-python = ">=3.9,<3.11"
+license = {file = "LICENSE"}
+authors = [{name = "bin3C authors; METAHI-T maintainers"}]
+dependencies = [
+  "biopython==1.84",
+  "networkx==3.2.1",
+  "numpy==1.26.4",
+  "pandas==2.2.3",
+  "pysam==0.22.1",
+  "scipy==1.13.1",
+  "sparse==0.15.4",
+  "tqdm==4.67.0",
+]
+
+[tool.setuptools.packages.find]
+include = ["bin3c_python3*"]
+
+[tool.setuptools.package-data]
+bin3c_python3 = ["external/Infomap"]
