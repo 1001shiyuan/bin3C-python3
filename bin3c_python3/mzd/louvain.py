@@ -19,7 +19,7 @@ def decompose_graph(g):
     """
     decomposed = []
     p = com.best_partition(g)
-    partition_labels = np.unique(p.values())
+    partition_labels = np.unique(list(p.values()))
 
     # for each partition, create the sub-graph
     for pi in partition_labels:
@@ -76,7 +76,7 @@ def cluster(g, no_iso, method=None, ragbag=False, verbose=False):
 
     logger.info('Inverting partition map')
     revpart = {}
-    for ni, ci in partitions.iteritems():
+    for ni, ci in partitions.items():
         revpart.setdefault(ci, []).append((ni, 1.0))
 
     if verbose:
@@ -95,10 +95,10 @@ def cluster(g, no_iso, method=None, ragbag=False, verbose=False):
     if method == 'maxaff':
         for u in g.nodes_iter():
             if g.degree(u) > 0:
-                max_u = max([x[1]['weight'] for x in g[u].items()])
+                max_u = max([x[1]['weight'] for x in list(g[u].items())])
                 for v in nx.all_neighbors(g, u):
                     if partitions[u] != partitions[v]:
-                        max_v = max([x[1]['weight'] for x in g[v].items()])
+                        max_v = max([x[1]['weight'] for x in list(g[v].items())])
                         w_v = g[u][v]['weight']
                         if w_v == max_u:
                             communities[partitions[v]][u] = 0.5
@@ -117,7 +117,7 @@ def cluster(g, no_iso, method=None, ragbag=False, verbose=False):
 
     if ragbag and len(ragbag_group) > 0:
         rb_id = max(communities)+1
-        if rb_id in communities.keys():
+        if rb_id in list(communities.keys()):
             raise RuntimeError('ragbag id clashed. This function is really dumb and some refactoring is in order')
         communities[rb_id] = ragbag_group
 
@@ -152,7 +152,7 @@ def write_output(communities, filename, ofmt='mcl'):
     elif ofmt == 'graphml':
         # convert communities to a graph
         cg = nx.DiGraph()
-        for k, v in communities.iteritems():
+        for k, v in communities.items():
             cg.add_node(k)
             for vi in v:
                 cg.add_edge(k, vi)
@@ -190,7 +190,7 @@ if __name__ == '__main__':
     else:
         g = nx.read_edgelist(args.input, data=(('weight', float), ))
 
-    print 'Initial statistics'
+    print('Initial statistics')
     print_info(g)
 
     if args.otype == 'soft':

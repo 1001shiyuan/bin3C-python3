@@ -1,5 +1,6 @@
+#!/usr/bin/env python
 import bz2
-import cPickle
+import pickle
 import gzip
 import json
 import io
@@ -18,7 +19,7 @@ def save_object(file_name, obj):
     :param obj: object to serialize
     """
     with open_output(file_name, compress='gzip') as out_h:
-        cPickle.dump(obj, out_h)
+        pickle.dump(obj, out_h)
 
 
 def load_object(file_name):
@@ -29,7 +30,7 @@ def load_object(file_name):
     :return: deserialzied object
     """
     with open_input(file_name) as in_h:
-        return cPickle.load(in_h)
+        return pickle.load(in_h)
 
 
 def open_input(file_name):
@@ -193,7 +194,7 @@ def json_load_byteified(file_handle):
 
 def _byteify(data, ignore_dicts=False):
     # if this is a unicode string, return its string representation
-    if isinstance(data, unicode):
+    if isinstance(data, str):
         return data.encode('utf-8')
     # if this is a list of values, return list of byteified values
     if isinstance(data, list):
@@ -203,7 +204,7 @@ def _byteify(data, ignore_dicts=False):
     if isinstance(data, dict) and not ignore_dicts:
         return {
             _byteify(key, ignore_dicts=True): _byteify(value, ignore_dicts=True)
-            for key, value in data.iteritems()
+            for key, value in list(data.items())
             }
     # if it's anything else, return it in its original form
     return data

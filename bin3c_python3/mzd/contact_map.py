@@ -1,8 +1,8 @@
 import matplotlib
 matplotlib.use('Agg')
 
-from mzd import io_utils, sparse_utils
-from mzd.seq_utils import *
+from . import io_utils, sparse_utils
+from .seq_utils import *
 from collections import OrderedDict, namedtuple
 from numba import jit, int64, float64, void
 import Bio.SeqIO as SeqIO
@@ -75,7 +75,7 @@ def fast_norm_tipbased_bylength(coords, data, tip_lengths, tip_size):
     :param tip_lengths: per-element min(sequence_length, tip_size)
     :param tip_size: tip size used in map
     """
-    for ii in xrange(coords.shape[1]):
+    for ii in range(coords.shape[1]):
         i, j = coords[:2, ii]
         data[ii] *= tip_size**2 / (tip_lengths[i] * tip_lengths[j])
 
@@ -92,7 +92,7 @@ def fast_norm_tipbased_bysite(coords, data, sites):
     :param data:  the COO matrix data member variable (1xN array)
     :param sites: per-element min(sequence_length, tip_size)
     """
-    for n in xrange(coords.shape[1]):
+    for n in range(coords.shape[1]):
         i, j, k, l = coords[:, n]
         data[n] *= 1.0/(sites[i, k] * sites[j, l])
 
@@ -107,7 +107,7 @@ def fast_norm_fullseq_bysite(rows, cols, data, sites):
     :param data:  the COO matrix data member variable (1xN array)
     :param sites: per-element min(sequence_length, tip_size)
     """
-    for n in xrange(data.shape[0]):
+    for n in range(data.shape[0]):
         i = rows[n]
         j = cols[n]
         data[n] *= 1.0/(sites[i] * sites[j])
@@ -184,7 +184,7 @@ class SeqOrder:
         self._positions = None
         _ord = np.arange(len(seq_info), dtype=np.int32)
         self.order = np.array(
-            [(_ord[i], SeqOrder.FORWARD, SeqOrder.ACCEPTED, seq_info[i].length) for i in xrange(len(_ord))],
+            [(_ord[i], SeqOrder.FORWARD, SeqOrder.ACCEPTED, seq_info[i].length) for i in range(len(_ord))],
             dtype=SeqOrder.STRUCT_TYPE)
 
         self._update_positions()
@@ -198,7 +198,7 @@ class SeqOrder:
         :return: INDEX_TYPE array
         """
         assert isinstance(_ord, (list, np.ndarray)), 'input must be a list or ndarray'
-        return np.array(zip(_ord, np.ones_like(_ord, dtype=np.bool)), dtype=SeqOrder.INDEX_TYPE)
+        return np.array(list(zip(_ord, np.ones_like(_ord, dtype=np.bool))), dtype=SeqOrder.INDEX_TYPE)
 
     def _update_positions(self):
         """
@@ -384,7 +384,7 @@ class SeqOrder:
         """
         idx = np.where(self.order['mask'])
         ori = np.ones(self.count_accepted(), dtype=np.int)
-        return np.array(zip(idx, ori), dtype=SeqOrder.INDEX_TYPE)
+        return np.array(list(zip(idx, ori)), dtype=SeqOrder.INDEX_TYPE)
 
     def mask_vector(self):
         """
@@ -623,7 +623,7 @@ class ContactMap:
 
         def next_informative(_bam_iter, _pbar):
             while True:
-                r = _bam_iter.next()
+                r = next(_bam_iter)
                 _pbar.update()
                 if not r.is_unmapped and not r.is_secondary and not r.is_supplementary:
                     return r
@@ -1048,12 +1048,12 @@ class ContactMap:
         m_out = sparse_utils.Sparse2DAccumulator(self.total_seq)
         cbins = np.cumsum(self.grouping.bins)
         a0 = 0
-        for i in xrange(len(self.grouping.bins)):
+        for i in range(len(self.grouping.bins)):
             a1 = cbins[i]
             # sacrifice memory for significant speed up slicing below
             row_i = m[a0:a1, :].todense()
             b0 = 0
-            for j in xrange(i, len(self.grouping.bins)):
+            for j in range(i, len(self.grouping.bins)):
                 b1 = cbins[j]
                 mij = row_i[:, b0:b1].sum()
                 if mij == 0:
@@ -1079,7 +1079,7 @@ class ContactMap:
 
         assert _map.shape[0] == _order.shape[0], 'supplied map and unmasked order are different sizes'
         p = sp.lil_matrix(_map.shape)
-        for i in xrange(len(_order)):
+        for i in range(len(_order)):
             p[i, _order[i]] = 1.
         p = p.tocsr()
         return p.dot(_map.tocsr()).dot(p.T)
@@ -1137,9 +1137,9 @@ class ContactMap:
                 _mean_func = mean_selector(mean_type)
                 _len = self.order.lengths().astype(np.float)
                 _map = _map.tolil().astype(np.float)
-                for i in xrange(_map.shape[0]):
+                for i in range(_map.shape[0]):
                     _map[i, :] /= np.fromiter((1e-3 * _mean_func(_len[i],  _len[j])
-                                               for j in xrange(_map.shape[0])), dtype=np.float)
+                                               for j in range(_map.shape[0])), dtype=np.float)
                 _map = _map.tocsr()
 
         return _map
@@ -1184,12 +1184,12 @@ class ContactMap:
             j_off = _bins[:oi].sum()
             i_off = _shuf_bins[:i].sum()
             if _ori[i] > 0:
-                for k in xrange(_bins[oi]):
+                for k in range(_bins[oi]):
                     p[i_off+k, j_off+k] = 1
             else:
                 # rot90 those with reverse orientation
                 _nb = _bins[oi]
-                for k in xrange(_nb):
+                for k in range(_nb):
                     p[i_off+_nb-(k+1), j_off+k] = 1
 
         # permute the extent_map
@@ -1215,10 +1215,10 @@ class ContactMap:
         s = 0
         accept_bins = []
         # accept_index = set(np.where(_mask)[0])
-        for i in xrange(len(_order)):
+        for i in range(len(_order)):
             # if i in accept_index:
             if _order[i]['mask']:
-                accept_bins.extend([j+s for j in xrange(_bins[i])])
+                accept_bins.extend([j+s for j in range(_bins[i])])
             s += _bins[i]
 
         # use a hashable container for quicker lookup
@@ -1228,7 +1228,7 @@ class ContactMap:
         keep_row = []
         keep_col = []
         keep_data = []
-        for i in xrange(_map.nnz):
+        for i in range(_map.nnz):
             if _map.row[i] in accept_bins and _map.col[i] in accept_bins:
                 keep_row.append(_map.row[i])
                 keep_col.append(_map.col[i])
@@ -1238,7 +1238,7 @@ class ContactMap:
         # TODO this could be moved into the loop above
         _shift = np.cumsum((~_order['mask']) * _bins)
         _csbins = np.cumsum(_bins)
-        for i in xrange(len(keep_row)):
+        for i in range(len(keep_row)):
             # rather than build a complete list of shifts across matrix, we'll
             # sacrifice some CPU and do lookups for the appropriate bin
             ir = np.searchsorted(_csbins, keep_row[i], side='right')
@@ -1261,7 +1261,7 @@ class ContactMap:
         if permute:
             seq_id_iter = self.order.accepted_positions()
         else:
-            seq_id_iter = xrange(self.order.count_accepted())
+            seq_id_iter = range(self.order.count_accepted())
 
         tick_labs = []
         for i in seq_id_iter:
@@ -1272,7 +1272,7 @@ class ContactMap:
 
         if simple:
             step = 2 if self.is_tipbased() else 1
-            tick_locs = xrange(2, step*self.order.count_accepted()+step, step)
+            tick_locs = range(2, step*self.order.count_accepted()+step, step)
         else:
             if permute:
                 _cbins = np.cumsum(self.grouping.bins[self.order.accepted_positions()])
@@ -1382,4 +1382,3 @@ class ContactMap:
         fig.tight_layout()
         plt.savefig(fname, dpi=dpi)
         plt.close(fig)
-

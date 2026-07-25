@@ -1,6 +1,6 @@
+#!/usr/bin/env python
 import numpy as np
 import os
-import sys
 
 
 def make_random_seed():
@@ -34,6 +34,5 @@ def app_path(subdir, filename):
     :param filename: name of file
     :return: absolute path
     """
-    return os.path.join(sys.path[0], subdir, filename)
-
-
+    package_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(package_root, subdir, filename)

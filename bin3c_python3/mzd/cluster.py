@@ -1,6 +1,7 @@
-from . import louvain
+#!/usr/bin/env python
+import os
 from .utils import app_path, make_dir
-from .contact_map import SeqOrder
+from .order import SeqOrder
 from .seq_utils import IndexedFasta
 from .exceptions import *
 from typing import Optional
@@ -11,7 +12,6 @@ import itertools
 import logging
 import networkx as nx
 import numpy as np
-import os
 import pandas
 import scipy.sparse as sp
 import subprocess
@@ -54,25 +54,6 @@ def cluster_map(contact_map, seed, method='infomap', min_len=None, min_sig=None,
     :return: a dictionary detailing the full clustering of the contact map
     """
 
-    def _read_mcl(pathname):
-        """
-        Read a MCL solution file converting this to a TruthTable.
-
-        :param pathname: mcl file name
-        :return: dict of cluster_id to array of seq_ids
-        """
-
-        with open(pathname, 'r') as h_in:
-            # read the MCL file, which lists all members of a class on a single line
-            # the class ids are implicit, therefore we use line number.
-            cl_map = {}
-            for cl_id, line in enumerate(h_in):
-                line = line.rstrip()
-                if not line:
-                    break
-                cl_map[cl_id] = np.array(sorted([int(tok) for tok in line.split()]))
-        return cl_map
-
     def _read_table(pathname, seq_col=0, cl_col=1):
         # type: (str, Optional[int], int) -> dict
         """
@@ -105,7 +86,7 @@ def cluster_map(contact_map, seed, method='infomap', min_len=None, min_sig=None,
                     seq_id, cl_id = int(t[seq_col]), int(t[cl_col])
                 cl_map.setdefault(cl_id, []).append(seq_id)
             for k in cl_map:
-                cl_map[k] = np.array(cl_map[k], dtype=np.int)
+                cl_map[k] = np.array(cl_map[k], dtype=int)
             return cl_map
 
     def _read_tree(pathname):
@@ -132,7 +113,7 @@ def cluster_map(contact_map, seed, method='infomap', min_len=None, min_sig=None,
             # rename clusters and order descending in size
             desc_key = sorted(cl_map, key=lambda x: len(cl_map[x]), reverse=True)
             for n, k in enumerate(desc_key):
-                cl_map[n] = np.array(cl_map.pop(k), dtype=np.int)
+                cl_map[n] = np.array(cl_map.pop(k), dtype=int)
 
         return cl_map
 
@@ -155,57 +136,21 @@ def cluster_map(contact_map, seed, method='infomap', min_len=None, min_sig=None,
     base_name = 'cm_graph'
     g = to_graph(contact_map, min_len=min_len, min_sig=min_sig, norm=True, bisto=True, scale=True)
 
-    method = method.lower()
+    method = "infomap"
     logger.info('Clustering contact graph using method: {}'.format(method))
 
-    if method == 'louvain':
-        cl_to_ids = louvain.cluster(g, no_iso=False, ragbag=False)
-    elif method == 'mcl':
-        with open(os.path.join(work_dir, 'mcl.log'), 'w+') as stdout:
-            ofile = os.path.join(work_dir, '{}.mcl'.format(base_name))
-            edge_file = _write_edges(g, work_dir, base_name)
-            nx.write_edgelist(g, edge_file, data=['weight'])
-            subprocess.check_call([app_path('external', 'mcl'),  edge_file, '--abc', '-I', '1.2', '-o', ofile],
-                                  stdout=stdout, stderr=subprocess.STDOUT)
-            cl_to_ids = _read_mcl(ofile)
-    elif method == 'simap':
-        with open(os.path.join(work_dir, 'simap.log'), 'w+') as stdout:
-            ofile = os.path.join(work_dir, '{}.simap'.format(base_name))
-            edge_file = _write_edges(g, work_dir, base_name)
-            subprocess.check_call(['java', '-jar', app_path('external', 'simap-1.0.0.jar'), 'mdl', '-s', str(seed),
-                                   '-i', '1e-5', '1e-3', '-a', '1e-5', '-g', edge_file, '-o', ofile],
-                                  stdout=stdout, stderr=subprocess.STDOUT)
-            cl_to_ids = _read_table(ofile)
-    elif method == 'infomap':
-        with open(os.path.join(work_dir, 'infomap.log'), 'w+') as stdout:
-            edge_file = _write_edges(g, work_dir, base_name)
-            subprocess.check_call([app_path('external', 'Infomap'), '-u', '-v', '-z', '-i', 'link-list',
-                                   '-s', str(seed), '-N', '10', edge_file, work_dir],
-                                  stdout=stdout, stderr=subprocess.STDOUT)
-            cl_to_ids = _read_tree(os.path.join(work_dir, '{}.tree'.format(base_name)))
-    elif method == 'slm':
-        with open(os.path.join(work_dir, 'slm.log'), 'w+') as stdout:
-            mod_func = '1'
-            resolution = '2.0'
-            opti_algo = '3'
-            n_starts = '10'
-            n_iters = '10'
-            ofile = os.path.join(work_dir, '{}.slm'.format(base_name))
-            verb = '1'
-            edge_file = _write_edges(g, work_dir, base_name, sep='\t')
-            subprocess.check_call(['java', '-jar', app_path('external', 'ModularityOptimizer.jar'), edge_file,
-                                   ofile, mod_func, resolution, opti_algo, n_starts, n_iters, str(seed), verb],
-                                  stdout=stdout, stderr=subprocess.STDOUT)
-            cl_to_ids = _read_table(ofile, seq_col=None, cl_col=0)
-    else:
-        raise RuntimeError('unimplemented method: {}'.format(method))
-
+    with open(os.path.join(work_dir, 'infomap.log'), 'w+') as stdout:
+        edge_file = _write_edges(g, work_dir, base_name)
+        subprocess.check_call([app_path('external', 'Infomap'), '-u', '-v', '-z', '-i', 'link-list',
+                               '-s', str(seed), '-N', '10', edge_file, work_dir],
+                              stdout=stdout, stderr=subprocess.STDOUT)
+        cl_to_ids = _read_tree(os.path.join(work_dir, '{}.tree'.format(base_name)))
     logger.info('Clustering using {} resulted in {} clusters'.format(method, len(cl_to_ids)))
 
     # standardise the results, where sequences in each cluster
     # are listed in ascending order
     clustering = {}
-    for cl_id, _seqs in cl_to_ids.iteritems():
+    for cl_id, _seqs in list(cl_to_ids.items()):
         _ord = SeqOrder.asindex(np.sort(_seqs))
         # IMPORTANT!! sequences are remapped to their gapless indices
         _seqs = contact_map.order.remap_gapless(_ord)['index']
@@ -239,7 +184,9 @@ def cluster_report(contact_map, clustering, source_fasta=None, is_spades=True):
 
     logger.info('Analyzing the contents of each cluster')
 
-    seq_info = contact_map.seq_info
+    seq_info = getattr(contact_map, 'seq_info_bin3c', None)
+    if seq_info is None:
+        seq_info = contact_map.seq_info
 
     if source_fasta is None:
         source_fasta = contact_map.seq_file
@@ -248,7 +195,7 @@ def cluster_report(contact_map, clustering, source_fasta=None, is_spades=True):
     logger.info('Building random access index for input FASTA sequences')
     with contextlib.closing(IndexedFasta(source_fasta)) as seq_db:
         # iterate over the cluster set, in the existing order
-        for cl_id, cl_info in tqdm.tqdm(clustering.iteritems(), total=len(clustering),
+        for cl_id, cl_info in tqdm.tqdm(iter(list(clustering.items())), total=len(clustering),
                                         desc='inspecting clusters'):
             _len = []
             _cov = []
@@ -259,19 +206,19 @@ def cluster_report(contact_map, clustering, source_fasta=None, is_spades=True):
                 _len.append(seq_info[_seq_id].length)
                 # fetch the SeqRecord object from the input fasta
                 _seq = seq_db[_name]
-                _gc.append(SeqUtils.GC(_seq.seq))
+                _gc.append(SeqUtils.gc_fraction(_seq.seq)*100)
                 if is_spades:
                     _cov.append(float(_name.split('_')[-1]))
 
             if is_spades:
-                report = np.array(zip(_len, _gc, _cov),
-                                  dtype=[('length', np.int),
-                                         ('gc', np.float),
-                                         ('cov', np.float)])
+                report = np.array(list(zip(_len, _gc, _cov)),
+                                  dtype=[('length', int),
+                                         ('gc', float),
+                                         ('cov', float)])
             else:
-                report = np.array(zip(_len, _gc),
-                                  dtype=[('length', np.int),
-                                         ('gc', np.float)])
+                report = np.array(list(zip(_len, _gc)),
+                                  dtype=[('length', int),
+                                         ('gc', float)])
             clustering[cl_id]['report'] = report
 
 
@@ -317,10 +264,11 @@ def to_graph(contact_map, norm=True, bisto=False, scale=False, extern_ids=False,
 
     logger.debug('Building graph from edges')
     g = nx.Graph(name='contact_graph')
-    for u, v, w in tqdm.tqdm(itertools.izip(_map.row, _map.col, _map.data), desc='adding edges', total=_map.nnz):
+    for u, v, w in tqdm.tqdm(list(zip(_map.row, _map.col, _map.data)), desc='adding edges', total=_map.nnz):
         g.add_edge(_nn(u), _nn(v), weight=w * scl)
 
-    logger.info('Finished: {}'.format(nx.info(g).replace('\n', ' ')))
+    logger.info('Finished: {}'.format("Number of nodes : " + str(len(g.nodes))))
+    logger.info('Finished: {}'.format("Number of edges : " + str(len(g.edges))))
 
     return g
 
@@ -340,7 +288,7 @@ def enable_clusters(contact_map, clustering, cl_list=None, ordered_only=True, mi
 
     # start with all clusters if unspecified
     if cl_list is None:
-        cl_list = clustering.keys()
+        cl_list = list(clustering.keys())
 
     # use instance criterion if not explicitly set
     if min_extent is None:
@@ -377,7 +325,7 @@ def enable_clusters(contact_map, clustering, cl_list=None, ordered_only=True, mi
     logger.info('Total number of sequences in the clustering: {}'.format(len(cmb_ord)))
 
     # prepare the mask
-    _mask = np.zeros_like(contact_map.order.mask_vector(), dtype=np.bool)
+    _mask = np.zeros_like(contact_map.order.mask_vector(), dtype=bool)
     _mask[cmb_ord['index']] = True
     _mask &= contact_map.get_primary_acceptance_mask()
     logger.info('After joining with active sequence mask map: {}'.format(_mask.sum()))
@@ -387,66 +335,6 @@ def enable_clusters(contact_map, clustering, cl_list=None, ordered_only=True, mi
     return cl_list
 
 
-def plot_clusters(contact_map, fname, clustering, cl_list=None, simple=True, permute=False, max_image_size=None,
-                  ordered_only=False, min_extent=None, use_taxo=False, flatten=False, **kwargs):
-    """
-    Plot the contact map, annotating the map with cluster names and boundaries.
-
-    For large contact maps, block reduction can be employed to reduce the size for plotting purposes. Using
-    block_reduction=2 will reduce the map dimensions by a factor of 2. Must be integer.
-
-    :param contact_map: an instance of ContactMap to cluster
-    :param fname: output file name
-    :param clustering: the cluster solution
-    :param cl_list: the list of cluster ids to include in plot. If none, include all ordered clusters
-    :param simple: True plot seq map, False plot the extent map
-    :param permute: permute the map with the present order
-    :param max_image_size:  maximum allowable image size before rescale occurs
-    :param ordered_only: include only clusters which have been ordered
-    :param min_extent: include only clusters whose total extent is greater
-    :param use_taxo: use taxonomic information within clustering, assuming it exists
-    :param flatten: for tip-based, flatten matrix rather than marginalise
-    :param kwargs: additional options passed to plot()
-    """
-
-    if cl_list is None:
-        logger.info('Plotting heatmap of complete solution')
-    else:
-        logger.info('Plotting heatmap for {} specified clusters'.format(len(cl_list)))
-
-    if simple or contact_map.bin_size is None:
-        # prepare the map early as we wish to override the mask
-        # which happens to be initialized in this method call
-        if contact_map.processed_map is None:
-            contact_map.prepare_seq_map(norm=True, bisto=True)
-
-    # now build the list of relevant clusters and setup the associated mask
-    cl_list = enable_clusters(contact_map, clustering, cl_list=cl_list, ordered_only=ordered_only,
-                              min_extent=min_extent)
-
-    if simple or contact_map.bin_size is None:
-        # tick spacing simple the number of sequences in the cluster
-        tick_locs = np.cumsum([0] + [len(clustering[k]['seq_ids']) for k in cl_list])
-        if contact_map.is_tipbased() and flatten:
-            tick_locs *= 2
-    else:
-        # tick spacing depends on cumulative bins for sequences in cluster
-        # cumulative bin count, excluding masked sequences
-        csbins = [0]
-        for k in cl_list:
-            # get the order records for the sequences in cluster k
-            _oi = contact_map.order.order[clustering[k]['seq_ids']]
-            # count the cumulative bins at each cluster for those sequences which are not masked
-            csbins.append(contact_map.grouping.bins[clustering[k]['seq_ids'][_oi['mask']]].sum() + csbins[-1])
-        tick_locs = np.array(csbins, dtype=np.int)
-
-    if use_taxo:
-        _labels = [clustering[cl_id]['taxon'] for cl_id in cl_list]
-    else:
-        _labels = [clustering[cl_id]['name'] for cl_id in cl_list]
-
-    contact_map.plot(fname, permute=permute, simple=simple, tick_locs=tick_locs, tick_labs=_labels,
-                     max_image_size=max_image_size, flatten=flatten, **kwargs)
 
 
 def write_report(fname, clustering):
@@ -480,7 +368,7 @@ def write_report(fname, clustering):
 
     df = []
     has_cov = False
-    for k, v in clustering.iteritems():
+    for k, v in list(clustering.items()):
         try:
             sr = v['report']
 
@@ -518,36 +406,6 @@ def write_report(fname, clustering):
     df.to_csv(fname, sep=',')
 
 
-def write_mcl(contact_map, fname, clustering):
-    """
-    Write out the clustering solution in the format used by MCL. Each line represents a cluster
-    with all members on the line show as a space-delimited list.
-
-    :param contact_map: an instance of ContactMap to cluster
-    :param fname: output file name
-    :param clustering: our clustering solution
-    """
-    with open(fname, 'w') as outh:
-        seq_info = contact_map.seq_info
-        # track those sequences that were rejected during filtering
-        lost = np.ones(contact_map.total_seq, dtype=np.bool)
-        cl_soln = {}
-        for k, v in clustering.iteritems():
-            # sequence wasn't lost to filtering
-            lost[v['seq_ids']] = False
-            cl_soln[k] = [seq_info[ix].name for ix in np.sort(v['seq_ids'])]
-
-        # create singleton clusters for all the lost sequences.
-        # if these are left out, scoring measures aren't happy
-        for n, ix in enumerate(np.argwhere(lost), len(cl_soln)):
-            cl_soln[n] = [seq_info[ix[0]].name]
-
-        clid_ascending = sorted(cl_soln.keys())
-        for k in clid_ascending:
-            outh.write(' '.join(cl_soln[k]))
-            outh.write('\n')
-
-
 def write_fasta(contact_map, output_dir, clustering, source_fasta=None, clobber=False, only_large=False):
     """
     Write out multi-fasta for all determined clusters in clustering.
@@ -570,7 +428,9 @@ def write_fasta(contact_map, output_dir, clustering, source_fasta=None, clobber=
 
     logger.info('Writing output to the path: {}'.format(output_dir))
 
-    seq_info = contact_map.seq_info
+    seq_info = getattr(contact_map, 'seq_info_bin3c', None)
+    if seq_info is None:
+        seq_info = contact_map.seq_info
 
     parent_dir = os.path.join(output_dir, 'fasta')
     make_dir(parent_dir)
@@ -582,7 +442,7 @@ def write_fasta(contact_map, output_dir, clustering, source_fasta=None, clobber=
     with contextlib.closing(IndexedFasta(source_fasta)) as seq_db:
 
         # iterate over the cluster set, in the existing order
-        for cl_id, cl_info in clustering.iteritems():
+        for cl_id, cl_info in list(clustering.items()):
 
             if only_large and cl_info['extent'] < contact_map.min_extent:
                 continue

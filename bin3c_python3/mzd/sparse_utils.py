@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import logging
 import numpy as np
 import scipy.sparse as scisp
@@ -5,18 +6,6 @@ import sparse
 from math import ceil
 
 logger = logging.getLogger(__name__)
-
-
-def is_hermitian(m, tol=1e-6):
-    """
-    Test that a sparse matrix is hermitian (also suffices for symmetric)
-
-    :param m: square matrix
-    :param tol: tolernace above zero for m - m.T < tol
-    :return: True matrix is Hermitian
-    """
-    return np.all(~(np.abs(m - m.H) >= tol).todense())
-
 
 def tensor_print(T):
     """
@@ -30,19 +19,19 @@ def tensor_print(T):
         pw = int(np.ceil(np.log10(T.max())))
     except OverflowError:
         pw = 1
-    for i in xrange(T.shape[0]):
-        for k in xrange(T.shape[2]):
-            print '|',
-            for j in xrange(T.shape[1]):
-                print '[',
-                for l in xrange(T.shape[3]):
-                    print '{0:{1}d}'.format(T[i, j, k, l], pw),
+    for i in range(T.shape[0]):
+        for k in range(T.shape[2]):
+            print('|', end=' ')
+            for j in range(T.shape[1]):
+                print('[', end=' ')
+                for l in range(T.shape[3]):
+                    print('{0:{1}d}'.format(T[i, j, k, l], pw), end=' ')
 
-                print ']',
-            print '|'
+                print(']', end=' ')
+            print('|')
         if i < T.shape[1] - 1:
-            print '+'
-    print
+            print('+')
+    print()
 
 
 def downsample(m, block_size, method='mean'):
@@ -116,9 +105,6 @@ def kr_biostochastic(m, tol=1e-6, x0=None, delta=0.1, Delta=3, max_iter=1000):
 
     if not scisp.isspmatrix_csr(m):
         m = m.tocsr()
-
-    if not is_hermitian(m, tol):
-        logger.warning('input matrix is expected to be fully symmetric')
 
     n = m.shape[0]
     e = np.ones(n)
@@ -234,7 +220,7 @@ class Sparse2DAccumulator(object):
 
     def __setitem__(self, index, value):
         assert len(index) == 2 and index[0] >= 0 and index[1] >= 0, 'invalid index: {}'.format(index)
-        assert isinstance(value, (int, np.int)), 'values must be integers'
+        assert isinstance(value, (int, int)), 'values must be integers'
         self.mat[index] = value
 
     def __getitem__(self, index):
@@ -253,7 +239,7 @@ class Sparse2DAccumulator(object):
         _coords = [[], []]
         _data = []
         _m = self.mat
-        for i, j in _m.keys():
+        for i, j in list(_m.keys()):
             _coords[0].append(i)
             _coords[1].append(j)
             _data.append(_m[i, j])
@@ -298,7 +284,7 @@ def compress(_m, _mask):
     keep_col = []
     keep_data = []
     accept_index = set(np.where(_mask)[0])
-    for i in xrange(_m.nnz):
+    for i in range(_m.nnz):
         if _m.row[i] in accept_index and _m.col[i] in accept_index:
             keep_row.append(_m.row[i])
             keep_col.append(_m.col[i])
@@ -307,7 +293,7 @@ def compress(_m, _mask):
     # adjustments for removed rows/column indices
     shift = np.cumsum(~_mask)
     # TODO move this in the above loop
-    for i in xrange(len(keep_row)):
+    for i in range(len(keep_row)):
         keep_row[i] -= shift[keep_row[i]]
         keep_col[i] -= shift[keep_col[i]]
 
@@ -361,7 +347,7 @@ class Sparse4DAccumulator(object):
         _data = []
         _m = self.mat
         _inner_indices = [[0, 0], [0, 1], [1, 0], [1, 1]]
-        for i, j in _m.keys():
+        for i, j in list(_m.keys()):
             for k, l in _inner_indices:
                 v = _m[i, j][k, l]
                 if v != 0:
@@ -431,7 +417,7 @@ def flatten_tensor_4d(_m):
     """
     _coords = [[], []]
     _data = []
-    for n in xrange(_m.nnz):
+    for n in range(_m.nnz):
         i, j, k, l = _m.coords[:, n]
         ii = 2*i
         jj = 2*j
@@ -461,14 +447,14 @@ def compress_4d(_m, _mask):
     keep_coords = []
     keep_data = []
     accept_index = set(np.where(_mask)[0])
-    for i in xrange(_m.nnz):
+    for i in range(_m.nnz):
         if _m.coords[0, i] in accept_index and _m.coords[1, i] in accept_index:
             keep_coords.append(_m.coords[:, i])
             keep_data.append(_m.data[i])
-    keep_coords = np.array(keep_coords, dtype=np.int).T
+    keep_coords = np.array(keep_coords, dtype=int).T
 
     # remaining data needs adjustments to compensate for removed rows/column indices
-    shift = np.cumsum(~_mask, dtype=np.int)
+    shift = np.cumsum(~_mask, dtype=int)
     keep_coords[:2, :] -= shift[keep_coords[:2, :]]
 
     # create new smaller matrix
@@ -486,7 +472,7 @@ def dotdot(_m, _a):
     :param _a: the 1d trace of a diagonal matrix
     :return: the in-place modified matrix
     """
-    for n in xrange(_m.nnz):
+    for n in range(_m.nnz):
         i, j = _m.coords[:2, n]
         _m.data[n] *= _a[i] * _a[j]
     return _m
@@ -503,7 +489,6 @@ def kr_biostochastic_4d(m4d, **kwargs):
     :return: a scaled matrix, scale-factors
     """
     # reduce to a 2D array, where we're summing the 2x2 submatrices
-    m2d = m4d.astype(np.float).sum(axis=(2, 3)).tocsr()
+    m2d = m4d.astype(float).sum(axis=(2, 3)).tocsr()
     _, scl = kr_biostochastic(m2d, **kwargs)
-    return dotdot(m4d.astype(np.float), scl), scl
-
+    return dotdot(m4d.astype(float), scl), scl

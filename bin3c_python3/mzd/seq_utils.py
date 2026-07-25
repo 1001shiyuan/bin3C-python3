@@ -1,7 +1,8 @@
+#!/usr/bin/env python
 from .exceptions import *
 from Bio.Restriction import Restriction
 from difflib import SequenceMatcher
-from collections import Iterable, Mapping
+from collections.abc import Iterable,Mapping
 from scipy.stats import mstats
 import Bio.SeqIO as SeqIO
 import heapq
@@ -104,10 +105,10 @@ class SiteCounter(object):
         :param tip_size: when using tip based counting, the size in bp
         :param is_linear: Treat sequence as linear.
         """
-        if isinstance(enzyme_names, basestring):
+        if isinstance(enzyme_names, str):
             enzyme_names = [enzyme_names]
         assert (isinstance(enzyme_names, Iterable) and
-                not isinstance(enzyme_names, basestring)), 'enzyme_names must of a collection of names'
+                not isinstance(enzyme_names, str)), 'enzyme_names must of a collection of names'
         self.enzymes = [SiteCounter._get_enzyme_instance(en) for en in enzyme_names]
         self.is_linear = is_linear
         self.tip_size = tip_size
@@ -163,8 +164,8 @@ class SiteCounter(object):
 
 class SequenceAnalyzer:
 
-    COV_TYPE = np.dtype([('index', np.int16), ('status', np.bool), ('node', np.float),
-                         ('local', np.float), ('fold', np.float)])
+    COV_TYPE = np.dtype([('index', int), ('status', bool), ('node', float),
+                         ('local', float), ('fold', float)])
 
     @staticmethod
     def read_report(file_name):
@@ -180,7 +181,7 @@ class SequenceAnalyzer:
         g = nx.Graph()
         n_seq = len(self.seq_info)
 
-        for i in xrange(n_seq):
+        for i in range(n_seq):
             si = self.seq_info[i]
             d = self.seq_report['seq_info'][si.name]
             if self.tip_size:
@@ -199,8 +200,8 @@ class SequenceAnalyzer:
         if self.tip_size:
             _m = _m.sum(axis=(2, 3))
 
-        for i in xrange(n_seq):
-            for j in xrange(i, n_seq):
+        for i in range(n_seq):
+            for j in range(i, n_seq):
                 if _m[i, j] > 0:
                     g.add_edge(i, j, weight=float(_m[i, j]))
 
@@ -223,7 +224,7 @@ class SequenceAnalyzer:
         if not local_set:
             local_set = set()
 
-        neighbors = [v[0] for v in heapq.nlargest(n+1, g[u].items(), key=lambda x: x[1]['weight'])]
+        neighbors = [v[0] for v in heapq.nlargest(n+1, list(g[u].items()), key=lambda x: x[1]['weight'])]
         local_set.update(neighbors)
         if k > 0:
             for v in neighbors:
