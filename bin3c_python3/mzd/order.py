@@ -1,4 +1,4 @@
-"""Small ordering interface used by the METAHI-T bin3C clustering adapter."""
+"""Small ordering interface used by the METAHICT bin3C clustering adapter."""
 
 import numpy as np
 

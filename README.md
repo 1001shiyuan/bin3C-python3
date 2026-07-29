@@ -1,10 +1,10 @@
 # bin3C
 
-## METAHI-T Python 3 port
+## METAHICT Python 3 port
 
 This repository is an attributed fork of [cerebis/bin3C](https://github.com/cerebis/bin3C), based on upstream commit `76ad2a94597b92b21e1d2054a1917c277e06cb1b`.  It retains the upstream source history and the GNU Affero General Public License v3.0 in `LICENSE`.
 
-The `metahit-python3-port` branch ports the bin3C modules used by METAHI-T to Python 3 and packages them as `bin3c_python3`.  METAHI-T must pin an immutable release tag and commit of this repository; it must not copy this source tree into its own repository.  Changes are listed in `CHANGELOG.md`.
+The `metahict-python3-port` branch ports the bin3C modules used by METAHICT to Python 3 and packages them as `bin3c_python3`.  METAHICT must pin an immutable release tag and commit of this repository; it must not copy this source tree into its own repository.  Changes are listed in `CHANGELOG.md`.
 
 If you use this fork, cite the original bin3C publication: DeMaere MZ and Darling AE. *Genome Biology* 20, 46 (2019). https://doi.org/10.1186/s13059-019-1643-1
 Extract metagenome-assembled genomes (MAGs) from metagenomic data using Hi-C.

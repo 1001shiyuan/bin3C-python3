@@ -3,13 +3,13 @@ requires = ["setuptools==75.5.0", "wheel==0.45.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "bin3c-python3-metahit"
+name = "bin3c-python3-metahict"
 version = "0.1.1.post1"
-description = "Python 3 port of bin3C maintained for METAHI-T"
+description = "Python 3 port of bin3C maintained for METAHICT"
 readme = "README.md"
 requires-python = ">=3.9,<3.11"
 license = {file = "LICENSE"}
-authors = [{name = "bin3C authors; METAHI-T maintainers"}]
+authors = [{name = "bin3C authors; METAHICT maintainers"}]
 dependencies = [
   "biopython==1.84",
   "networkx==3.2.1",

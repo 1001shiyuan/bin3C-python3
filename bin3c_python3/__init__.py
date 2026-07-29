@@ -1,4 +1,4 @@
-"""Python 3 port of bin3C for use by METAHI-T."""
+"""Python 3 port of bin3C for use by METAHICT."""
 
 import numpy as _np
 
